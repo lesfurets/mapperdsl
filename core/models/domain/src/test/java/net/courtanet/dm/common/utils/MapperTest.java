@@ -13,7 +13,7 @@ import net.courtanet.dm.common.type.*;
 public class MapperTest {
 
     @Test
-    public void testETauxAlcoolemieSanguin() throws Exception {
+    public void should_throw_illegalargumentexception_when_mapping_does_not_exist() throws Exception {
         Mapper<ETauxAlcoolemieSanguin, Integer> mapper = Mapper.<ETauxAlcoolemieSanguin, Integer> builder()
                 .map(DE_080_A_100).to(80)
                 .map(DE_101_A_125).to(100)
@@ -25,12 +25,12 @@ public class MapperTest {
     }
 
     @Test
-    public void test_EMotifResiliation() throws Exception {
+    public void should_map_to_null_correctly() throws Exception {
         Mapper<EMotifResiliation, String> resiliationStringMapper = Mapper.<EMotifResiliation, String> builder()
                 .map(EMotifResiliation.AUCUN).to("")
                 .map(EMotifResiliation.LOI_CHATEL, "loi")
                 .map(EMotifResiliation.PLUS_DE_3ANS, "2 trois ans")
-                .map(null, "null")
+                .mapNull().to("null")
                 .build();
 
         assertThat(resiliationStringMapper.map(EMotifResiliation.LOI_CHATEL)).isEqualTo("loi");
@@ -38,10 +38,10 @@ public class MapperTest {
     }
 
     @Test
-    public void test_ETypeGarage() throws Exception {
+    public void should_map_with_function_correctly() throws Exception {
         Mapper<ETypeGarage, String> resiliationStringMapper = Mapper.<ETypeGarage, String> builder()
                 .map(ETypeGarage.BOX_FERME).with(ETypeGarage::getCode)
-                .map(null).withIllegalArgumentException()
+                .mapNull().withIllegalArgumentException()
                 .withDefault(e -> null)
                 .build();
 
@@ -51,9 +51,9 @@ public class MapperTest {
     }
 
     @Test
-    public void test_ETypeGarage_default_function() throws Exception {
+    public void should_map_to_null_before_applying_default_mapping() throws Exception {
         Mapper<ETypeGarage, String> resiliationStringMapper = Mapper.<ETypeGarage, String> builder()
-                .map(null).to(null)
+                .mapNull().to(null)
                 .withDefault(ETypeGarage::getCode)
                 .build();
 
@@ -71,7 +71,7 @@ public class MapperTest {
     }
 
     @Test
-    public void test_enum_default_mapping() throws Exception {
+    public void should_throw_illegalargumentexception_when_default_mapping_does_not_exist() throws Exception {
         Mapper<EA, EB> mapper = Mapper.<EA, EB> builder()
                 .withDefault(ea -> EB.valueOf(ea.name()))
                 .build();
@@ -81,7 +81,7 @@ public class MapperTest {
     }
 
     @Test
-    public void test_enum_default_mapping_verify() throws Exception {
+    public void should_map_with_default_function_when_custom_mapping_is_provided() throws Exception {
         Mapper<EA, EB> mapper = Mapper.<EA, EB> builder()
                 .withDefault(ea -> EB.valueOf(ea.name()))
                 .map(EA.C).to(null)
@@ -89,5 +89,15 @@ public class MapperTest {
         assertThat(mapper.map(EA.A)).isEqualTo(EB.A);
         assertThat(mapper.map(EA.B)).isEqualTo(EB.B);
         assertThat(mapper.map(EA.C)).isEqualTo(null);
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void should_throw_illegalstateexception_when_no_mapping_provided() throws Exception {
+        Mapper.<EA, EB> builder().build();
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void should_throw_illegalstateexception_when_mapping_incomplete() throws Exception {
+        Mapper.<EA, EB> builder().mapNull().to(EB.A).build();
     }
 }

@@ -4,10 +4,13 @@
 package net.courtanet.dm.common.utils;
 
 import java.util.Collections;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 public class Mapper<I, O> {
 
@@ -21,29 +24,46 @@ public class Mapper<I, O> {
 
     private final Map<I, Function<I, O>> mappings;
     private final Function<I, O> defaultFunction;
+    private final Supplier<O> nullSupplier;
 
-    public Mapper(Map<I, Function<I, O>> mappings, Function<I, O> defaultFunction) {
+    public Mapper(Map<I, Function<I, O>> mappings, Function<I, O> defaultFunction, Supplier<O> nullSupplier) {
         this.mappings = mappings;
         this.defaultFunction = defaultFunction;
+        this.nullSupplier = nullSupplier;
     }
 
     public O map(I input) {
+        if (nullSupplier != null && input == null) {
+            return nullSupplier.get();
+        }
         if (mappings.containsKey(input)) {
             return mappings.get(input).apply(input);
-        } else {
-            return Optional.ofNullable(defaultFunction)
-                    .orElseThrow(() -> new IllegalArgumentException(input + " value not supported"))
-                    .apply(input);
         }
+        return Optional.ofNullable(defaultFunction)
+                .orElseThrow(() -> new IllegalArgumentException(input + " value not supported"))
+                .apply(input);
+    }
+
+    public Map<I, Function<I, O>> getMappings() {
+        return mappings;
     }
 
     public static class MapperBuilder<I, O> {
 
-        Map<I, Function<I, O>> mappings = new HashMap<>();
-        Function<I, O> defaultFunction = null;
+        private Map<I, Function<I, O>> mappings;
+        private Function<I, O> defaultFunction = null;
+        private Supplier<O> nullSupplier = null;
 
         public Mapper<I, O> build() {
-            return new Mapper<>(Collections.unmodifiableMap(mappings), defaultFunction);
+            if (mappings == null) {
+                if (defaultFunction == null) {
+                    throw new IllegalStateException(
+                            "Mapper configuration incomplete. Specify at least one mapping or a default function.");
+                } else {
+                    mappings = Collections.emptyMap();
+                }
+            }
+            return new Mapper<>(Collections.unmodifiableMap(mappings), defaultFunction, nullSupplier);
         }
 
         public MapperBuilder<I, O> withDefault(Function<I, O> defaultFunction) {
@@ -56,6 +76,7 @@ public class Mapper<I, O> {
         }
 
         public Mapping<I, O> map(I in) {
+            Objects.requireNonNull(in, "Use mapNull method for mapping null value.");
             return new Mapping<>(in, this);
         }
 
@@ -64,34 +85,42 @@ public class Mapper<I, O> {
             return this;
         }
 
-        private void addMapping(Mapping<I, O> mapping) {
-            mappings.put(mapping.in, mapping.function);
+        public NullMapping<I, O> mapNull() {
+            return new NullMapping<>(this);
         }
 
+        private void addMapping(Mapping<I, O> mapping) {
+            if (mappings == null) {
+                if (mapping.in.getClass().isEnum()) {
+                    mappings = new EnumMap(mapping.in.getClass());
+                } else {
+                    mappings = new HashMap<>();
+                }
+            }
+            mappings.put(mapping.in, mapping.function);
+        }
     }
 
     public static class Mapping<I, O> {
 
         private MapperBuilder<I, O> mapperBuilder;
 
-        I in;
-        Function<I, O> function;
+        private I in;
+        private Function<I, O> function;
 
         public Mapping(I in, MapperBuilder<I, O> mapperBuilder) {
             this.in = in;
             this.mapperBuilder = mapperBuilder;
         }
 
-        public MapperBuilder<I, O> to(O out) {
-            this.function = I -> out;
-            mapperBuilder.addMapping(this);
-            return mapperBuilder;
-        }
-
         public MapperBuilder<I, O> with(Function<I, O> function) {
             this.function = function;
             mapperBuilder.addMapping(this);
             return mapperBuilder;
+        }
+
+        public MapperBuilder<I, O> to(O out) {
+            return this.with((in) -> out);
         }
 
         public MapperBuilder<I, O> withIllegalArgumentException(Function<I, String> exceptionMessage) {
@@ -101,8 +130,32 @@ public class Mapper<I, O> {
         }
 
         public MapperBuilder<I, O> withIllegalArgumentException() {
-            return withIllegalArgumentException((e) -> e + " value not supported");
+            return withIllegalArgumentException((e) -> "Unsupported " + e + " value.");
         }
 
+    }
+
+    public static class NullMapping<I, O> {
+
+        private MapperBuilder<I, O> mapperBuilder;
+
+        public NullMapping(MapperBuilder<I, O> mapperBuilder) {
+            this.mapperBuilder = mapperBuilder;
+        }
+
+        public MapperBuilder<I, O> with(Supplier<O> supplier) {
+            mapperBuilder.nullSupplier = supplier;
+            return mapperBuilder;
+        }
+
+        public MapperBuilder<I, O> to(O out) {
+            return this.with(() -> out);
+        }
+
+        public MapperBuilder<I, O> withIllegalArgumentException() {
+            return with(() -> {
+                throw new IllegalArgumentException("Unsupported null value.");
+            });
+        }
     }
 }
