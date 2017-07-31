@@ -14,22 +14,35 @@ import java.util.function.Supplier;
 
 public class Mapper<I, O> {
 
-    public static <I, O> MapperBuilder<I, O> builder() {
-        return new MapperBuilder<>();
+    public static <I, O> MapperBuilder<I, O> builder(Class<I> inType, Class<O> outType) {
+        return new MapperBuilder<>(inType, outType);
     }
 
-    public static <I, O> MapperBuilder<I, O> map(I in, O out) {
-        return new MapperBuilder<I, O>().map(in, out);
-    }
-
+    private final Class<I> inType;
+    private final Class<O> outType;
     private final Map<I, Function<I, O>> mappings;
     private final Function<I, O> defaultFunction;
     private final Supplier<O> nullSupplier;
 
-    public Mapper(Map<I, Function<I, O>> mappings, Function<I, O> defaultFunction, Supplier<O> nullSupplier) {
+    private Mapper(Class<I> inType,
+            Class<O> outType,
+            Map<I, Function<I, O>> mappings,
+            Function<I, O> defaultFunction,
+            Supplier<O> nullSupplier) {
+
+        this.inType = inType;
+        this.outType = outType;
         this.mappings = mappings;
         this.defaultFunction = defaultFunction;
         this.nullSupplier = nullSupplier;
+    }
+
+    public Class<I> getInType() {
+        return inType;
+    }
+
+    public Class<O> getOutType() {
+        return outType;
     }
 
     public O map(I input) {
@@ -48,22 +61,41 @@ public class Mapper<I, O> {
         return mappings;
     }
 
+    @Override
+    public String toString() {
+        return "Mapper{" +
+                "inType=" + inType +
+                ", outType=" + outType +
+                ", mappings=" + mappings +
+                ", defaultFunction=" + defaultFunction +
+                ", nullSupplier=" + nullSupplier +
+                '}';
+    }
+
     public static class MapperBuilder<I, O> {
 
+        private Class<I> inType;
+        private Class<O> outType;
         private Map<I, Function<I, O>> mappings;
         private Function<I, O> defaultFunction = null;
         private Supplier<O> nullSupplier = null;
 
-        public Mapper<I, O> build() {
-            if (mappings == null) {
-                if (defaultFunction == null) {
-                    throw new IllegalStateException(
-                            "Mapper configuration incomplete. Specify at least one mapping or a default function.");
-                } else {
-                    mappings = Collections.emptyMap();
-                }
+        public MapperBuilder(Class<I> inType, Class<O> outType) {
+            this.inType = inType;
+            this.outType = outType;
+            if (inType.isEnum()) {
+                mappings = new EnumMap(inType);
+            } else {
+                mappings = new HashMap<>();
             }
-            return new Mapper<>(Collections.unmodifiableMap(mappings), defaultFunction, nullSupplier);
+        }
+
+        public Mapper<I, O> build() {
+            if (mappings.isEmpty() && defaultFunction == null) {
+                throw new IllegalStateException(
+                        "Mapper configuration incomplete. Specify at least one mapping or a default function.");
+            }
+            return new Mapper<>(inType, outType, Collections.unmodifiableMap(mappings), defaultFunction, nullSupplier);
         }
 
         public MapperBuilder<I, O> withDefault(Function<I, O> defaultFunction) {
@@ -90,13 +122,6 @@ public class Mapper<I, O> {
         }
 
         private void addMapping(Mapping<I, O> mapping) {
-            if (mappings == null) {
-                if (mapping.in.getClass().isEnum()) {
-                    mappings = new EnumMap(mapping.in.getClass());
-                } else {
-                    mappings = new HashMap<>();
-                }
-            }
             mappings.put(mapping.in, mapping.function);
         }
     }
