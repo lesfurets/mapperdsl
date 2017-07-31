@@ -1,7 +1,7 @@
 /*
  * Copyright (C) by Courtanet, All Rights Reserved.
  */
-package net.courtanet.dm.common.utils;
+package net.courtanet.config.type;
 
 import java.util.Collections;
 import java.util.EnumMap;

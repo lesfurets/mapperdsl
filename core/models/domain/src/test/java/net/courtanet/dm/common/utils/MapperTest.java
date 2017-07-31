@@ -8,6 +8,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import org.junit.Test;
 
+import net.courtanet.config.type.Mapper;
 import net.courtanet.dm.common.type.*;
 
 public class MapperTest {

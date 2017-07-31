@@ -1,0 +1,17 @@
+package ${package.name};
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import javax.annotation.Generated;
+
+import org.junit.Test;
+
+${imported.types}
+
+/**
+ * @see ${in.class.name}#${in.fieldName}
+ */
+@Generated(value = "${in.class.name}")
+public class ${target.class.name} {
+    ${methods.code}
+}

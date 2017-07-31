@@ -1,0 +1,6 @@
+
+    ${deprecated}@Test
+    public void test_mapper_${prefix}_null() {
+        assertThat(${instance}
+                        .map((${in.type}) null)).isNull();
+    }
