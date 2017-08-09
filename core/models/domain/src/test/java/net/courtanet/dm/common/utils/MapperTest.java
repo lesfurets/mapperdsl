@@ -6,6 +6,7 @@ import static net.courtanet.dm.common.type.ETauxAlcoolemieSanguin.DE_126_A_150;
 import static net.courtanet.dm.common.type.ETauxAlcoolemieSanguin.DE_151_A_200;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+
 import org.junit.Test;
 
 import net.courtanet.config.type.Mapper;
@@ -26,8 +27,22 @@ public class MapperTest {
     }
 
     @Test
+    public void should_map_correctly_when_multi_mapping() throws Exception {
+        Mapper<ETauxAlcoolemieSanguin, Integer> mapper = Mapper.builder(ETauxAlcoolemieSanguin.class, Integer.class)
+                .map(DE_080_A_100).to(80)
+                .map(DE_101_A_125).to(100)
+                .map(DE_151_A_200, DE_126_A_150).to(126)
+                .build();
+
+        assertThat(mapper.map(ETauxAlcoolemieSanguin.DE_080_A_100)).isEqualTo(80);
+        assertThat(mapper.map(ETauxAlcoolemieSanguin.DE_126_A_150)).isEqualTo(126);
+        assertThat(mapper.map(ETauxAlcoolemieSanguin.DE_151_A_200)).isEqualTo(126);
+    }
+
+    @Test
     public void should_map_to_null_correctly() throws Exception {
-        Mapper<EMotifResiliation, String> resiliationStringMapper = Mapper.builder(EMotifResiliation.class, String.class)
+        Mapper<EMotifResiliation, String> resiliationStringMapper = Mapper.builder(EMotifResiliation.class, String
+                .class)
                 .map(EMotifResiliation.AUCUN).to("")
                 .map(EMotifResiliation.LOI_CHATEL, "loi")
                 .map(EMotifResiliation.PLUS_DE_3ANS, "2 trois ans")
@@ -74,6 +89,7 @@ public class MapperTest {
     @Test
     public void should_throw_illegalargumentexception_when_default_mapping_does_not_exist() throws Exception {
         Mapper<EA, EB> mapper = Mapper.builder(EA.class, EB.class)
+                .mapNull().to(null)
                 .withDefault(ea -> EB.valueOf(ea.name()))
                 .build();
         assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> mapper.map(EA.C));
@@ -84,6 +100,7 @@ public class MapperTest {
     @Test
     public void should_map_with_default_function_when_custom_mapping_is_provided() throws Exception {
         Mapper<EA, EB> mapper = Mapper.builder(EA.class, EB.class)
+                .mapNull().to(null)
                 .withDefault(ea -> EB.valueOf(ea.name()))
                 .map(EA.C).to(null)
                 .build();
@@ -102,6 +119,11 @@ public class MapperTest {
         Mapper.builder(EA.class, EB.class).mapNull().to(EB.A).build();
     }
 
+    @Test(expected = IllegalStateException.class)
+    public void should_throw_illegalstateexception_when_default_mapping_throws_nullpointerexception() throws Exception {
+        Mapper.builder(EA.class, EB.class).withDefault(ea -> EB.valueOf(ea.name())).build();
+    }
+
     @Test
     public void should_not_throw_classcastexception_at_initialize_mapper_is_already_enum_type() throws Exception {
         Mapper<Object, Integer> M = Mapper.builder(Object.class, Integer.class)
@@ -109,6 +131,7 @@ public class MapperTest {
                 .map("String").to(2)
                 .build();
     }
+
     @Test
     public void should_initialize_mapper_with_correct_types() throws Exception {
         Mapper<EB, Integer> M = Mapper.builder(EB.class, Integer.class)

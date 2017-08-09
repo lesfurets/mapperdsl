@@ -3,12 +3,7 @@
  */
 package net.courtanet.config.type;
 
-import java.util.Collections;
-import java.util.EnumMap;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -71,6 +66,27 @@ public class Mapper<I, O> {
     }
 
     /**
+     * @return default function
+     */
+    public Function<I, O> getDefaultMapping() {
+        return defaultFunction;
+    }
+
+    /**
+     * @return null function
+     */
+    public Supplier<O> getNullMapping() {
+        return nullSupplier;
+    }
+
+    /**
+     * @return immutable map of mappings
+     */
+    public Map<I, Function<I, O>> getMappings() {
+        return mappings;
+    }
+
+    /**
      * Map input value with I type to output value with O type.
      * May return {@code null} when the mapping defines null.
      *
@@ -90,13 +106,6 @@ public class Mapper<I, O> {
                 .apply(input);
     }
 
-    /**
-     * @return immutable map of mappings
-     */
-    public Map<I, Function<I, O>> getMappings() {
-        return mappings;
-    }
-
     @Override
     public String toString() {
         return "Mapper{" +
@@ -110,13 +119,14 @@ public class Mapper<I, O> {
 
     public static class MapperBuilder<I, O> {
 
-        private Class<I> inType;
-        private Class<O> outType;
-        private Map<I, Function<I, O>> mappings;
+        private final Class<I> inType;
+        private final Class<O> outType;
+        private final Map<I, Function<I, O>> mappings;
         private Function<I, O> defaultFunction = null;
         private Supplier<O> nullSupplier = null;
 
-        public MapperBuilder(Class<I> inType, Class<O> outType) {
+        @SuppressWarnings("unchecked")
+        MapperBuilder(Class<I> inType, Class<O> outType) {
             this.inType = inType;
             this.outType = outType;
             if (inType.isEnum()) {
@@ -138,6 +148,17 @@ public class Mapper<I, O> {
                 throw new IllegalStateException(
                         "Mapper configuration incomplete. Specify at least one mapping or a default function.");
             }
+            if (defaultFunction != null && nullSupplier == null) {
+                try {
+                    defaultFunction.apply(null);
+                } catch (NullPointerException e) {
+                    throw new IllegalStateException("Mapper configuration invalid. " +
+                            "Default function throws NullPointerException with a null value. " +
+                            "Specify a null mapping or provide a different default function.");
+                } catch (Throwable ignored) {
+
+                }
+            }
             return new Mapper<>(inType, outType, Collections.unmodifiableMap(mappings), defaultFunction, nullSupplier);
         }
 
@@ -147,7 +168,7 @@ public class Mapper<I, O> {
          * @param defaultFunction function to apply
          * @return mapper builder to build.
          */
-        public MapperBuilder<I, O> withDefault(Function<I, O> defaultFunction) {
+        public final MapperBuilder<I, O> withDefault(Function<I, O> defaultFunction) {
             this.defaultFunction = defaultFunction;
             return this;
         }
@@ -156,7 +177,7 @@ public class Mapper<I, O> {
          * @param defaultValue default output value
          * @return mapper builder to build.
          */
-        public MapperBuilder<I, O> withDefault(O defaultValue) {
+        public final MapperBuilder<I, O> withDefault(O defaultValue) {
             return withDefault(in -> defaultValue);
         }
 
@@ -167,9 +188,22 @@ public class Mapper<I, O> {
          * @return mapping to complete with in value.
          * @throws NullPointerException when value is {@code null}.
          */
-        public Mapping<I, O> map(I in) {
+        public final Mapping<I, O> map(I in) {
             Objects.requireNonNull(in, "Use mapNull method for mapping null value.");
             return new Mapping<>(in, this);
+        }
+
+        /**
+         * Start defining a static mapping for the given list of non {@code null} values.
+         *
+         * @param in in value
+         * @return multi mapping to complete with in value
+         * @throws NullPointerException when in value is {@code null}.
+         */
+        @SafeVarargs
+        public final MultiMapping<I, O> map(I... in) {
+            Objects.requireNonNull(in, "Array of values is null. Use mapNull method for mapping null value");
+            return new MultiMapping<>(in, this);
         }
 
         /**
@@ -179,7 +213,7 @@ public class Mapper<I, O> {
          * @param out out value
          * @return Mapper builder to build.
          */
-        public MapperBuilder<I, O> map(I in, O out) {
+        public final MapperBuilder<I, O> map(I in, O out) {
             map(in).to(out);
             return this;
         }
@@ -189,7 +223,7 @@ public class Mapper<I, O> {
          *
          * @return mapping to complete
          */
-        public NullMapping<I, O> mapNull() {
+        public final NullMapping<I, O> mapNull() {
             return new NullMapping<>(this);
         }
 
@@ -202,17 +236,9 @@ public class Mapper<I, O> {
      * @param <I> input type
      * @param <O> output type
      */
-    public static class Mapping<I, O> {
+    public static abstract class AbstractMapping<I, O> {
 
-        private MapperBuilder<I, O> mapperBuilder;
-
-        private I in;
-        private Function<I, O> function;
-
-        public Mapping(I in, MapperBuilder<I, O> mapperBuilder) {
-            this.in = in;
-            this.mapperBuilder = mapperBuilder;
-        }
+        MapperBuilder<I, O> mapperBuilder;
 
         /**
          * Complete the mapping definition with the given function.
@@ -220,11 +246,7 @@ public class Mapper<I, O> {
          * @param function function to apply for this mapping.
          * @return mapper builder to build.
          */
-        public MapperBuilder<I, O> with(Function<I, O> function) {
-            this.function = function;
-            mapperBuilder.addMapping(this);
-            return mapperBuilder;
-        }
+        public abstract MapperBuilder<I, O> with(Function<I, O> function);
 
         /**
          * Complete the mapping definition with the given value.
@@ -260,6 +282,54 @@ public class Mapper<I, O> {
 
     }
 
+    public static class Mapping<I, O> extends AbstractMapping<I, O> {
+
+        private I in;
+        private Function<I, O> function;
+
+        Mapping(I in, MapperBuilder<I, O> mapperBuilder) {
+            this.in = in;
+            this.mapperBuilder = mapperBuilder;
+        }
+
+        /**
+         * Complete the mapping definition with the given function.
+         *
+         * @param function function to apply for this mapping.
+         * @return mapper builder to build.
+         */
+        public MapperBuilder<I, O> with(Function<I, O> function) {
+            this.function = function;
+            mapperBuilder.addMapping(this);
+            return mapperBuilder;
+        }
+
+    }
+
+    public static class MultiMapping<I, O> extends AbstractMapping<I, O> {
+
+        private I[] in;
+
+        MultiMapping(I[] in, MapperBuilder<I, O> mapperBuilder) {
+            this.in = in;
+            this.mapperBuilder = mapperBuilder;
+        }
+
+        /**
+         * Complete the mapping definition with the given function.
+         *
+         * @param function function to apply for this mapping.
+         * @return mapper builder to build.
+         */
+        public MapperBuilder<I, O> with(Function<I, O> function) {
+            for (I i : in) {
+                mapperBuilder.map(i).with(function);
+            }
+            return mapperBuilder;
+        }
+
+    }
+
     /**
      * @param <I> input type
      * @param <O> output type
@@ -268,7 +338,7 @@ public class Mapper<I, O> {
 
         private MapperBuilder<I, O> mapperBuilder;
 
-        public NullMapping(MapperBuilder<I, O> mapperBuilder) {
+        NullMapping(MapperBuilder<I, O> mapperBuilder) {
             this.mapperBuilder = mapperBuilder;
         }
 
