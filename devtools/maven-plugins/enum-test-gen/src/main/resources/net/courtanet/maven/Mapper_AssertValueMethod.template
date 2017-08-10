@@ -1,6 +1,6 @@
 
     ${deprecated}@Test
-    public void test_mapper_${prefix}_with_${in.constant}() {
+    public void should_map_${in.constant}_with_${out.constant}() {
         ${out.name} value = ${instance}
                         .map(${in.value});
         assertThat(value).isEqualTo(${out.value});

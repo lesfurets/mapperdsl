@@ -212,7 +212,9 @@ public class Mapper<I, O> {
          * @param in  in value
          * @param out out value
          * @return Mapper builder to build.
+         * @deprecated use {@link #map(Object)} followed by {@link Mapping#to(Object)}
          */
+        @Deprecated
         public final MapperBuilder<I, O> map(I in, O out) {
             map(in).to(out);
             return this;

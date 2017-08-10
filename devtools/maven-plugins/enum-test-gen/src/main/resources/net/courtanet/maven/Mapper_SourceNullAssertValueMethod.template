@@ -1,6 +1,6 @@
 
     ${deprecated}@Test
-    public void test_mapper_${prefix}_null() {
+    public void should_map_null_with_${out.constant}() {
         ${out.name} value = ${instance}
                         .map((${in.type}) null);
         assertThat(${out.value}).isEqualTo(value);

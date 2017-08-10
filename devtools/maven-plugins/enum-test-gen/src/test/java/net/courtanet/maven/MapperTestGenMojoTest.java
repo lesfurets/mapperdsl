@@ -33,9 +33,11 @@ public class MapperTestGenMojoTest {
         assertThat(formatConstant(Integer.class, 12345))
                 .isEqualTo("12345");
         assertThat(formatConstant(Double.class, 12345.123))
-                .isEqualTo("12345.123");
+                .isEqualTo("12345_123");
         assertThat(formatConstant(Boolean.class, Boolean.TRUE))
                 .isEqualTo("true");
+        assertThat(formatConstant(String.class, "somé str!ng with sp@ces & sYmb%ls"))
+                .isEqualTo("som__str_ng_with_sp_ces___sYmb_ls");
     }
 
     @Test

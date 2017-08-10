@@ -13,12 +13,7 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.net.URLClassLoader;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import org.apache.commons.io.IOUtils;
@@ -127,6 +122,7 @@ public final class MapperTestGenMojo extends EnumTestGenMojo {
         params.put("in.value", formatValue(inType, in));
         params.put("deprecated", buildDeprecatedWarning(in, out));
         params.put("out.name", name(outType));
+        params.put("out.constant", formatConstant(outType, out));
         params.put("out.value", formatValue(outType, out));
         params.put("instance", fqcn(clazz) + '.' + fieldName);
         final String template;
@@ -204,7 +200,7 @@ public final class MapperTestGenMojo extends EnumTestGenMojo {
         if (type.isEnum()) {
             return nameOf(value);
         } else {
-            return String.valueOf(value);
+            return String.valueOf(value).replaceAll("[^a-zA-Z\\d\\w]", "_");
         }
     }
 

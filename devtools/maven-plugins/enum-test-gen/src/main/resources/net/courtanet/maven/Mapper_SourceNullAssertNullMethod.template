@@ -1,6 +1,6 @@
 
     ${deprecated}@Test
-    public void test_mapper_${prefix}_null() {
+    public void should_map_null_with_null() {
         assertThat(${instance}
                         .map((${in.type}) null)).isNull();
     }

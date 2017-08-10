@@ -1,6 +1,6 @@
 
     ${deprecated}@Test(expected = ${exception.type}.class)
-    public void test_mapper_${prefix}_null() {
+    public void should_throw_exception_when_map_null() {
         ${instance}
                         .map((${in.type}) null);
     }

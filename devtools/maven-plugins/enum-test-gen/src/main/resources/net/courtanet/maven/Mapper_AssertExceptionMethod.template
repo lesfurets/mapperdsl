@@ -1,5 +1,5 @@
 
     ${deprecated}@Test(expected = ${exception.type}.class)
-    public void test_mapper_${prefix}_with_${in.constant}() {
+    public void should_throw_exception_when_map_${in.constant}() {
         ${instance}.map(${in.value});
     }
